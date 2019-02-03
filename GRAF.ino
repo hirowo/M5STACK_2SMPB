@@ -32,6 +32,14 @@ Omron2SMPB02E prs;
 
 uint16_t GraphBuff_A[int(GRAPH_W)] = {0};
 uint16_t GraphBuff_B[int(GRAPH_W)] = {0};
+
+//　グラフの最大値と最小値を変数にする
+uint32_t Graph_A_Max;
+uint32_t Graph_A_Min;
+
+uint32_t Graph_B_Max;
+uint32_t Graph_B_Min;
+
 // グラフ開始ポイントを設定 
 uint16_t graphStartPos[2] = {
   GRAPH_X + 1,
@@ -40,7 +48,7 @@ uint16_t graphStartPos[2] = {
 
 /* 描画用バッファ領域をずらす*/
 void slideBuff(uint16_t buff[], uint16_t size){
-  for(int i = size - 1; i >= 0; i--) buff[i] = buff[i - 1];
+  for(int i = size - 1; i > 0; i--) buff[i] = buff[i - 1];
 }
 
 /* テキスト描画 */
@@ -52,8 +60,8 @@ void drawText(uint32_t x, uint32_t y, String text, uint32_t color , uint8_t size
 }
 
 /*グラフ描画 */
-void updateGraph(uint16_t color,uint16_t *GraphBuff){
-  for(int i = 0; i < sizeof(GraphBuff_A); i++){
+void updateGraph(uint16_t color,uint16_t *GraphBuff,uint16_t count){
+  for(int i = 0; i < count; i++){
     M5.Lcd.drawPixel(graphStartPos[0] + i, graphStartPos[1] - *GraphBuff++, color);
   }
 }
@@ -67,8 +75,22 @@ void setup()
    M5.begin();
   prs.set_mode(MODE_NORMAL);
   delay(300);
+  //範囲選定用に１回読み込む
+  float tmp = prs.read_temp();
+  float pressure = prs.read_pressure();
+  Graph_A_Max = (uint32_t)pressure + 1000;
+  Graph_A_Min = (uint32_t)pressure - 1000;
+  
+  Graph_B_Max = (uint32_t)tmp + 10;
+  Graph_B_Min = (uint32_t)tmp - 10;
+  
+
 }
 
+ 
+ // 何回読んだかのカウント
+
+ uint16_t count =1;
 void loop()
 {
   //気圧と温度を読み込む
@@ -85,12 +107,18 @@ void loop()
 
  //気圧を描画する
   slideBuff(GraphBuff_A, sizeof(GraphBuff_A) / 2); 
-  GraphBuff_A[0] = map(pressure, GRAPH_A_MIN, GRAPH_A_MAX, 0, GRAPH_H - 2);
-  updateGraph(WHITE,GraphBuff_A);
+  GraphBuff_A[0] = map(pressure, Graph_A_Min, Graph_A_Max, 0, GRAPH_H - 2);
+  updateGraph(WHITE,GraphBuff_A,count);
  //温度を描画する
   slideBuff(GraphBuff_B, sizeof(GraphBuff_B) / 2); 
-  GraphBuff_B[0] = map(tmp, GRAPH_B_MIN, GRAPH_B_MAX, 0, GRAPH_H - 2);
-  updateGraph(GREEN,GraphBuff_B);
+  GraphBuff_B[0] = map(tmp, Graph_B_Min, Graph_B_Max, 0, GRAPH_H - 2);
+  updateGraph(GREEN,GraphBuff_B,count);
+  if(count >= GRAPH_W){
+    count = GRAPH_W;
+  }
+  else {
+    count ++;
+  }
 
   delay(100);
 }
